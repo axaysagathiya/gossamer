@@ -5,7 +5,6 @@ package scale
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -134,26 +133,33 @@ func Test_decodeState_decodeSlice(t *testing.T) {
 }
 
 func Test_decodeState_decodeMap(t *testing.T) {
+	mapTests = tests{
+		{
+			name: "testMap1",
+			in:   map[int8][]byte{2: []byte("some string")},
+			want: []byte{4, 2, 44, 115, 111, 109, 101, 32, 115, 116, 114, 105, 110, 103},
+		},
+		{
+			name: "testMap2",
+			in: map[int8][]byte{
+				2:  []byte("some string"),
+				16: []byte("lorem ipsum"),
+			},
+			want: []byte{8, 2, 44, 115, 111, 109, 101, 32, 115, 116, 114, 105, 110, 103, 16, 44, 108, 111, 114, 101, 109, 32, 105, 112, 115, 117, 109},
+		},
+	}
+
 	for _, tt := range mapTests {
-
-		//debug
-		fmt.Printf("Print ==> tt.want = %v\n", tt.want)
-
 		t.Run(tt.name, func(t *testing.T) {
-			dst := reflect.New(reflect.TypeOf(tt.in)).Elem().Interface()
+			dst := map[int8][]byte{}
 			if err := Unmarshal(tt.want, &dst); (err != nil) != tt.wantErr {
 				t.Errorf("decodeState.unmarshal() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			//debug
-			fmt.Printf("dst = %v\n", dst)
 
 			if !reflect.DeepEqual(dst, tt.in) {
-				fmt.Printf("\n tt.in = %+v \n", tt.in)
 				t.Errorf("decodeState.unmarshal() = %v, want %v", dst, tt.in)
 			}
-
 		})
-		fmt.Println()
 	}
 }
 
