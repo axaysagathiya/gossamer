@@ -8,6 +8,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ChainSafe/gossamer/lib/common"
+	"github.com/ChainSafe/gossamer/lib/trie"
+	"github.com/ChainSafe/gossamer/pkg/scale"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -67,4 +70,15 @@ func recoveryThreshold(validators int) (int, error) {
 	needed := (validators - 1) / 3
 
 	return needed + 1, nil
+}
+
+func ChunksToTrie(chunks [][]byte) *trie.Trie {
+	chunkTrie := trie.NewEmptyTrie()
+	for i, chunk := range chunks {
+		encodedI := scale.MustMarshal(uint(i))
+		chunkHash := common.MustBlake2bHash(chunk)
+
+		chunkTrie.Put(encodedI, chunkHash[:])
+	}
+	return chunkTrie
 }
