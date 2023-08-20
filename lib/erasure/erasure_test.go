@@ -4,10 +4,15 @@
 package erasure
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/ChainSafe/gossamer/lib/common"
+	"github.com/ChainSafe/gossamer/lib/parachain"
+	"github.com/ChainSafe/gossamer/pkg/scale"
 	"github.com/klauspost/reedsolomon"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testData = []byte("this is a test of the erasure coding")
@@ -135,4 +140,69 @@ func TestReconstruct(t *testing.T) {
 			assert.Equal(t, tt.expectedData, data)
 		})
 	}
+}
+
+func TestChunksToTrie(t *testing.T) {
+
+	qty := 2
+	availableData := parachain.AvailableData{
+		PoV: parachain.PoV{
+			BlockData: parachain.BlockData{2},
+		},
+		ValidationData: parachain.PersistedValidationData{
+			ParentHead:             []byte{},
+			RelayParentNumber:      0,
+			RelayParentStorageRoot: common.Hash{},
+			MaxPovSize:             0,
+		},
+	}
+	dataBytes := scale.MustMarshal(availableData)
+
+	chunks, err := ObtainChunks(qty, dataBytes)
+	require.NoError(t, err)
+
+	fmt.Printf("\n\nchunks =>\n%+v\n\n", chunks)
+
+}
+
+func newObtainChunks(validatorsQty int, originalData []byte) ([][]byte, error) {
+	dataShards := 2
+	parityShards := 1
+	enc, err := reedsolomon.New(dataShards, parityShards)
+	if err != nil {
+		// Handle error
+		return nil, err
+	}
+
+	// Calculate the size of each data chunk
+	chunkSize := (len(originalData) + dataShards - 1) / dataShards // Round up division
+
+	// Split the data into individual chunks
+	var dataChunks [][]byte
+	for i := 0; i < dataShards; i++ {
+		start := i * chunkSize
+		end := start + chunkSize
+		if end > len(originalData) {
+			end = len(originalData)
+		}
+		dataChunks = append(dataChunks, originalData[start:end])
+	}
+
+	// Encode the data to generate the parity shard
+	err = enc.Encode(dataChunks)
+	if err != nil {
+		// Handle error
+		return nil, err
+	}
+
+	// Now, the encoded variable will contain the data chunks and the parity shard
+	fmt.Printf("**************************************************\n")
+	for i, chunk := range dataChunks {
+		fmt.Printf("Data Chunk %d: %v\n", i+1, chunk)
+	}
+
+	parityChunk := dataChunks[dataShards]
+	fmt.Printf("Parity Chunk: %v\n", parityChunk)
+	fmt.Printf("**************************************************\n")
+	return dataChunks, nil
 }
